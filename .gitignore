@@ -1,0 +1,17 @@
+# Filer Git skal ignorere (ikke lagre i historikken)
+
+# Systemfiler fra Windows/Mac
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Hemmeligheter og lokale innstillinger
+.env
+*.local
+.claude/settings.local.json
+
+# Avhengigheter og byggefiler (hvis vi bruker slike senere)
+node_modules/
+dist/
+__pycache__/
+.venv/
