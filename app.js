@@ -370,6 +370,7 @@ function tegnFaktisk() {
     manglerKnapper.append(knapp);
   }
   tegnStatus(dager);
+  tegnTips(dager);
   tegnGraf(dager);
   tegnKommende(dager);
 }
@@ -392,6 +393,93 @@ function tegnStatus(dager) {
       : `Kan gå under 0 kr ${datoKort.format(forsteMinus.dato)} hvis anslagene stemmer – lavest ${kroner.format(lav(lavest))}`;
   statusEl.append(ikon, lagElement("span", "", tekst));
   statusEl.classList.toggle("varsel", Boolean(forsteMinus));
+}
+
+// ---------- Tips ----------
+// Røde tips: en fast utgift som det ikke er nok penger til.
+// Grønne tips: det blir penger til overs, så det er rom for å spare mer.
+
+function lagTips(dager) {
+  const tips = [];
+  const idag = iDag();
+  const lav = (d) => Math.min(d.saldo, d.fast);
+
+  // Rødt: dager der en utgift gjør at saldoen går under 0 (maks to tips)
+  for (const d of dager) {
+    if (tips.length >= 2) break;
+    const utgifter = d.hendelser.filter((p) => p.type === "ut");
+    if (utgifter.length === 0 || lav(d) >= 0) continue;
+
+    const mangler = Math.ceil(-lav(d));
+    const navn = utgifter.map((p) => p.navn).join(" og ");
+    const dagerTil = dagerMellom(idag, d.dato);
+    const naar = dagerTil === 0 ? "i dag" : datoKort.format(d.dato);
+    const bareAnslag = d.fast >= 0; // går bare galt hvis man bruker som anslått
+
+    let rad = dagerTil > 0
+      ? `Sett av ca. ${kroner.format(Math.ceil(mangler / dagerTil))} per dag fram til da.`
+      : "Det trengs penger på konto i dag.";
+    if (bareAnslag) rad = `Det går bare hvis du bruker litt mindre enn anslått. ${rad}`;
+
+    tips.push({
+      type: "rod",
+      tittel: `Ikke nok penger til ${navn} ${naar}`,
+      tekst: `Du mangler ca. ${kroner.format(mangler)}. ${rad}`,
+    });
+  }
+
+  // Grønt: hvor mye som blir til overs per uke etter planen (inkludert anslag)
+  const overskudd = sum("inn") - sum("ut");
+  if (overskudd >= 20) {
+    // Foreslå å spare omtrent halvparten av overskuddet, rundet ned til nærmeste 10 kr
+    const forslag = Math.floor((overskudd / 2) / 10) * 10;
+    const forRod = tips.length > 0 ? "Når dette er ordnet, ser det bra ut! " : "Det ser bra ut! ";
+    let tekst = `${forRod}Du får ca. ${kroner.format(overskudd)} mer enn du bruker hver uke. Kanskje du kan spare ${kroner.format(forslag)} i uka?`;
+
+    // Hvis det finnes et sparemål: hvor mye raskere kommer man dit?
+    if (typeof sparePerUke === "function" && sparing.maal.pris > 0 && gjenstaar() > 0) {
+      const naa = ukerTilMaal(sparePerUke(true));
+      const ny = ukerTilMaal(sparePerUke(true) + forslag);
+      const maal = sparing.maal.navn || "sparemålet";
+      if (!Number.isFinite(naa)) tekst += ` Da har du nok til ${maal} om ${tidTekst(ny)}.`;
+      else if (naa - ny >= 1) tekst += ` Da har du nok til ${maal} hele ${tidTekst(naa - ny)} tidligere.`;
+    }
+
+    tips.push({ type: "gronn", tittel: "Du kan kanskje spare litt mer", tekst, sparForslag: forslag });
+  }
+  return tips;
+}
+
+function tegnTips(dager) {
+  const boks = document.getElementById("tips");
+  boks.replaceChildren();
+
+  for (const t of lagTips(dager)) {
+    const kort = lagElement("div", `tips-kort ${t.type}`);
+    const ikon = lagElement("span", "tips-ikon", t.type === "rod" ? "⚠️" : "😊");
+    ikon.setAttribute("aria-hidden", "true");
+
+    const innhold = lagElement("div", "tips-innhold");
+    innhold.append(lagElement("strong", "", t.tittel), lagElement("p", "", t.tekst));
+
+    // Grønt tips: knapp som legger forslaget til i fast sparing
+    if (t.sparForslag && typeof sparing === "object") {
+      const knapp = lagElement("button", "", `Spar ${kroner.format(t.sparForslag)} i uka`);
+      knapp.type = "button";
+      knapp.addEventListener("click", () => {
+        // Gjør om til samme enhet som fast sparing (per dag/uke/måned)
+        const perEnhet = t.sparForslag / PER_UKE[sparing.fast.frekvens];
+        sparing.fast.belop = Math.round(sparing.fast.belop + perEnhet);
+        lagreSparing();
+        visFane("sparing");
+        window.scrollTo(0, 0);
+      });
+      innhold.append(knapp);
+    }
+
+    kort.append(ikon, innhold);
+    boks.append(kort);
+  }
 }
 
 function tegnKommende(dager) {

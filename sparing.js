@@ -422,5 +422,7 @@ for (const f of FORSLAG) {
   forslagBoks.append(knapp);
 }
 
-// Tegn hvis Sparing var fanen som var åpen sist
+// Tegn hvis Sparing var fanen som var åpen sist. Faktisk tegnes på nytt også,
+// fordi tipsene der bruker sparemålet (som først finnes nå som denne fila er lastet).
 if (!document.getElementById("fane-sparing").hidden) tegnSparing();
+if (!document.getElementById("fane-faktisk").hidden) tegnFaktisk();
