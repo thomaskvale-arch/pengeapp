@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pengeoversikt</title>
+
+  <!-- Gjør at siden oppfører seg som en app når den legges på Hjem-skjermen -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2f6f5e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Penger">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topp">
+    <h1>Pengeoversikt</h1>
+  </header>
+
+  <main>
+    <!-- Oppsummering: alt regnet om til per uke -->
+    <section class="oppsummering" aria-label="Oppsummering per uke">
+      <p class="etikett">Igjen per uke</p>
+      <p class="igjen" id="sum-igjen">0 kr</p>
+      <div class="inn-ut">
+        <div>
+          <span class="etikett">Inn</span>
+          <span class="belop inn" id="sum-inn">0 kr</span>
+        </div>
+        <div>
+          <span class="etikett">Ut</span>
+          <span class="belop ut" id="sum-ut">0 kr</span>
+        </div>
+      </div>
+      <p class="maaned" id="sum-maaned"></p>
+    </section>
+
+    <section aria-labelledby="tittel-inn">
+      <div class="seksjon-topp">
+        <h2 id="tittel-inn">Penger inn</h2>
+        <button class="legg-til" data-type="inn" type="button">+ Legg til</button>
+      </div>
+      <ul class="liste" id="liste-inn"></ul>
+    </section>
+
+    <section aria-labelledby="tittel-ut">
+      <div class="seksjon-topp">
+        <h2 id="tittel-ut">Utgifter</h2>
+        <button class="legg-til" data-type="ut" type="button">+ Legg til</button>
+      </div>
+      <ul class="liste" id="liste-ut"></ul>
+    </section>
+
+    <section class="sikkerhet">
+      <h2>Sikkerhetskopi</h2>
+      <p>Alt lagres bare på denne telefonen. Ta en kopi av og til.</p>
+      <div class="knapper">
+        <button type="button" id="eksporter">Lagre kopi</button>
+        <label class="knapp">
+          Hent kopi
+          <input type="file" id="importer" accept="application/json,.json" hidden>
+        </label>
+      </div>
+    </section>
+  </main>
+
+  <!-- Skjema for å legge til eller endre en post -->
+  <dialog id="skjema-dialog">
+    <form id="skjema" method="dialog">
+      <h2 id="skjema-tittel">Ny post</h2>
+
+      <fieldset class="type-valg">
+        <legend>Type</legend>
+        <label><input type="radio" name="type" value="inn" checked> Penger inn</label>
+        <label><input type="radio" name="type" value="ut"> Utgift</label>
+      </fieldset>
+
+      <label>
+        Hva er det?
+        <input name="navn" required maxlength="40" placeholder="F.eks. Lønn fredag" autocomplete="off">
+      </label>
+
+      <label>
+        Beløp (kr)
+        <input name="belop" required inputmode="decimal" placeholder="0" autocomplete="off">
+      </label>
+
+      <label>
+        Hvor ofte?
+        <select name="frekvens">
+          <option value="uke">Hver uke</option>
+          <option value="annenhver">Annenhver uke</option>
+          <option value="maaned">Hver måned</option>
+          <option value="kvartal">Hvert kvartal</option>
+          <option value="aar">Hvert år</option>
+        </select>
+      </label>
+
+      <div class="skjema-knapper">
+        <button type="button" id="slett" class="fare" hidden>Slett</button>
+        <span class="fyll"></span>
+        <button type="button" id="avbryt">Avbryt</button>
+        <button type="submit" class="hoved">Lagre</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
