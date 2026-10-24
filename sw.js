@@ -1,13 +1,15 @@
 // Service worker: lagrer appens filer slik at den åpner også uten nett.
 // Henter alltid nyeste versjon når det er nett, og bruker lagret kopi ellers.
 
-const CACHE = "pengeoversikt-v2";
+// Øk tallet (og ?v= i index.html) når det publiseres en ny versjon
+const VERSJON = 3;
+const CACHE = `pengeoversikt-v${VERSJON}`;
 const FILER = [
   "./",
   "index.html",
-  "style.css",
-  "app.js",
-  "sparing.js",
+  `style.css?v=${VERSJON}`,
+  `app.js?v=${VERSJON}`,
+  `sparing.js?v=${VERSJON}`,
   "manifest.json",
   "icons/icon.svg",
   "icons/icon-180.png",
@@ -32,7 +34,9 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   e.respondWith(
-    fetch(e.request)
+    // «no-cache» betyr: spør alltid serveren om det finnes noe nyere,
+    // i stedet for å bruke nettleserens gamle kopi
+    fetch(e.request, { cache: "no-cache" })
       .then((svar) => {
         const kopi = svar.clone();
         caches.open(CACHE).then((c) => c.put(e.request, kopi));
