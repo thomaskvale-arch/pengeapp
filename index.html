@@ -19,54 +19,201 @@
 <body>
   <header class="topp">
     <h1>Pengeoversikt</h1>
+    <nav class="faner" role="tablist" aria-label="Visning">
+      <button type="button" role="tab" id="tab-plan" data-fane="plan" aria-controls="fane-plan">Plan</button>
+      <button type="button" role="tab" id="tab-faktisk" data-fane="faktisk" aria-controls="fane-faktisk">Faktisk</button>
+      <button type="button" role="tab" id="tab-sparing" data-fane="sparing" aria-controls="fane-sparing">Sparing</button>
+    </nav>
   </header>
 
   <main>
-    <!-- Oppsummering: alt regnet om til per uke -->
-    <section class="oppsummering" aria-label="Oppsummering per uke">
-      <p class="etikett">Igjen per uke</p>
-      <p class="igjen" id="sum-igjen">0 kr</p>
-      <div class="inn-ut">
-        <div>
-          <span class="etikett">Inn</span>
-          <span class="belop inn" id="sum-inn">0 kr</span>
+    <!-- ===== PLAN: budsjettet, alt regnet om til per uke ===== -->
+    <div id="fane-plan" role="tabpanel" aria-labelledby="tab-plan">
+      <section class="kort oppsummering" aria-label="Oppsummering per uke">
+        <p class="etikett">Igjen per uke</p>
+        <p class="hovedtall" id="sum-igjen">0 kr</p>
+        <div class="inn-ut">
+          <div>
+            <span class="etikett">Inn</span>
+            <span class="belop inn" id="sum-inn">0 kr</span>
+          </div>
+          <div>
+            <span class="etikett">Ut</span>
+            <span class="belop ut" id="sum-ut">0 kr</span>
+          </div>
         </div>
-        <div>
-          <span class="etikett">Ut</span>
-          <span class="belop ut" id="sum-ut">0 kr</span>
+        <p class="fotnote" id="sum-maaned"></p>
+      </section>
+
+      <section aria-labelledby="tittel-inn">
+        <div class="seksjon-topp">
+          <h2 id="tittel-inn">Penger inn</h2>
+          <button class="legg-til" data-type="inn" type="button">+ Legg til</button>
         </div>
-      </div>
-      <p class="maaned" id="sum-maaned"></p>
-    </section>
+        <ul class="liste" id="liste-inn"></ul>
+      </section>
 
-    <section aria-labelledby="tittel-inn">
-      <div class="seksjon-topp">
-        <h2 id="tittel-inn">Penger inn</h2>
-        <button class="legg-til" data-type="inn" type="button">+ Legg til</button>
-      </div>
-      <ul class="liste" id="liste-inn"></ul>
-    </section>
+      <section aria-labelledby="tittel-ut">
+        <div class="seksjon-topp">
+          <h2 id="tittel-ut">Utgifter</h2>
+          <button class="legg-til" data-type="ut" type="button">+ Legg til</button>
+        </div>
+        <ul class="liste" id="liste-ut"></ul>
+      </section>
 
-    <section aria-labelledby="tittel-ut">
-      <div class="seksjon-topp">
-        <h2 id="tittel-ut">Utgifter</h2>
-        <button class="legg-til" data-type="ut" type="button">+ Legg til</button>
-      </div>
-      <ul class="liste" id="liste-ut"></ul>
-    </section>
+      <section class="sikkerhet">
+        <h2>Sikkerhetskopi</h2>
+        <p>Alt lagres bare på denne telefonen. Ta en kopi av og til.</p>
+        <div class="knapper">
+          <button type="button" id="eksporter">Lagre kopi</button>
+          <label class="knapp">
+            Hent kopi
+            <input type="file" id="importer" accept="application/json,.json" hidden>
+          </label>
+        </div>
+      </section>
+    </div>
 
-    <section class="sikkerhet">
-      <h2>Sikkerhetskopi</h2>
-      <p>Alt lagres bare på denne telefonen. Ta en kopi av og til.</p>
-      <div class="knapper">
-        <button type="button" id="eksporter">Lagre kopi</button>
-        <label class="knapp">
-          Hent kopi
-          <input type="file" id="importer" accept="application/json,.json" hidden>
+    <!-- ===== FAKTISK: saldo nå og hva som kommer ===== -->
+    <div id="fane-faktisk" role="tabpanel" aria-labelledby="tab-faktisk" hidden>
+      <section class="kort" id="saldo-kort">
+        <p class="etikett">Saldo i dag</p>
+        <p class="hovedtall" id="saldo-idag">–</p>
+        <p class="fotnote" id="saldo-info">Legg inn saldoen din for å se hva som kommer.</p>
+        <button type="button" class="hoved" id="oppdater-saldo">Oppdater saldo</button>
+      </section>
+
+      <div id="framover" hidden>
+        <p class="status" id="status" role="status"></p>
+        <p class="fotnote" id="mangler-info" hidden></p>
+
+        <section class="kort graf-kort">
+          <div class="seksjon-topp">
+            <h2>Saldo fremover</h2>
+            <div class="periode" role="group" aria-label="Hvor langt fremover">
+              <button type="button" data-dager="14">14 dager</button>
+              <button type="button" data-dager="30">30 dager</button>
+            </div>
+          </div>
+          <div class="graf" id="graf">
+            <div class="tooltip" id="tooltip" hidden></div>
+          </div>
+        </section>
+
+        <section aria-labelledby="tittel-kommende">
+          <h2 id="tittel-kommende" class="seksjon-tittel">Dette skjer</h2>
+          <ul class="liste" id="kommende"></ul>
+        </section>
+      </div>
+    </div>
+    <!-- ===== SPARING: sparemål og hva kutt betyr ===== -->
+    <div id="fane-sparing" role="tabpanel" aria-labelledby="tab-sparing" hidden>
+      <section class="kort" aria-labelledby="tittel-maal">
+        <h2 id="tittel-maal" class="seksjon-tittel">Sparemål</h2>
+        <div class="felt-rad">
+          <label class="felt bred">
+            Hva sparer du til?
+            <input id="maal-navn" maxlength="40" placeholder="F.eks. PlayStation" autocomplete="off">
+          </label>
+        </div>
+        <div class="felt-rad">
+          <label class="felt">
+            Pris (kr)
+            <input id="maal-pris" inputmode="decimal" placeholder="0" autocomplete="off">
+          </label>
+          <label class="felt">
+            Spart allerede (kr)
+            <input id="maal-spart" inputmode="decimal" placeholder="0" autocomplete="off">
+          </label>
+        </div>
+        <div class="fremdrift" aria-hidden="true"><div id="fremdrift-fyll"></div></div>
+        <p class="fotnote" id="fremdrift-tekst"></p>
+      </section>
+
+      <section class="kort resultat" id="spare-resultat" aria-live="polite">
+        <p class="etikett" id="resultat-etikett">Med sparingen og kuttene</p>
+        <p class="hovedtall" id="resultat-tid">–</p>
+        <p class="fotnote" id="resultat-info"></p>
+      </section>
+
+      <section class="kort graf-kort" id="spare-graf-kort">
+        <div class="seksjon-topp">
+          <h2>Spart over tid</h2>
+        </div>
+        <div class="forklaring" id="spare-forklaring">
+          <span><i class="nokkel med"></i>Med kutt</span>
+          <span><i class="nokkel uten"></i>Uten kutt</span>
+          <span><i class="nokkel maal"></i>Målet</span>
+        </div>
+        <div class="graf" id="spare-graf">
+          <div class="tooltip" id="spare-tooltip" hidden></div>
+        </div>
+      </section>
+
+      <section aria-labelledby="tittel-fast">
+        <h2 id="tittel-fast" class="seksjon-tittel">Fast sparing</h2>
+        <div class="kort felt-rad kompakt">
+          <label class="felt">
+            Beløp (kr)
+            <input id="fast-belop" inputmode="decimal" placeholder="0" autocomplete="off">
+          </label>
+          <label class="felt">
+            Hvor ofte?
+            <select id="fast-frekvens">
+              <option value="dag">Hver dag</option>
+              <option value="uke">Hver uke</option>
+              <option value="maaned">Hver måned</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section aria-labelledby="tittel-kutt">
+        <div class="seksjon-topp">
+          <h2 id="tittel-kutt">Kutt</h2>
+          <button class="legg-til" id="nytt-kutt" type="button">+ Legg til</button>
+        </div>
+        <ul class="liste" id="kutt-liste"></ul>
+        <p class="fotnote">Eksempler – trykk for å legge til:</p>
+        <div class="forslag" id="kutt-forslag"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Skjema for kutt -->
+  <dialog id="kutt-dialog">
+    <form id="kutt-skjema" method="dialog">
+      <h2 id="kutt-tittel">Nytt kutt</h2>
+      <label>
+        Hva kutter du?
+        <input name="navn" required maxlength="40" placeholder="F.eks. Snus" autocomplete="off">
+      </label>
+      <div class="felt-rad">
+        <label class="felt">
+          Pris per stk (kr)
+          <input name="pris" required inputmode="decimal" placeholder="0" autocomplete="off">
+        </label>
+        <label class="felt">
+          Antall
+          <input name="antall" required type="number" min="1" step="1" inputmode="numeric" value="1">
         </label>
       </div>
-    </section>
-  </main>
+      <label>
+        Per
+        <select name="frekvens">
+          <option value="dag">Dag</option>
+          <option value="uke">Uke</option>
+          <option value="maaned">Måned</option>
+        </select>
+      </label>
+      <div class="skjema-knapper">
+        <button type="button" id="kutt-slett" class="fare" hidden>Slett</button>
+        <span class="fyll"></span>
+        <button type="button" id="kutt-avbryt">Avbryt</button>
+        <button type="submit" class="hoved">Lagre</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- Skjema for å legge til eller endre en post -->
   <dialog id="skjema-dialog">
@@ -100,6 +247,30 @@
         </select>
       </label>
 
+      <!-- Bare ett av disse tre feltene vises, avhengig av «Hvor ofte?» -->
+      <label data-for="uke">
+        Hvilken dag?
+        <select name="ukedag">
+          <option value="1">Mandag</option>
+          <option value="2">Tirsdag</option>
+          <option value="3">Onsdag</option>
+          <option value="4">Torsdag</option>
+          <option value="5">Fredag</option>
+          <option value="6">Lørdag</option>
+          <option value="0">Søndag</option>
+        </select>
+      </label>
+
+      <label data-for="maaned">
+        Hvilken dato i måneden?
+        <input name="dag" type="number" min="1" max="31" inputmode="numeric" placeholder="F.eks. 15">
+      </label>
+
+      <label data-for="annenhver kvartal aar">
+        Neste gang det skjer
+        <input name="start" type="date">
+      </label>
+
       <div class="skjema-knapper">
         <button type="button" id="slett" class="fare" hidden>Slett</button>
         <span class="fyll"></span>
@@ -109,6 +280,24 @@
     </form>
   </dialog>
 
+  <!-- Skjema for å oppdatere saldo -->
+  <dialog id="saldo-dialog">
+    <form id="saldo-skjema" method="dialog">
+      <h2>Hvor mye har du nå?</h2>
+      <label>
+        Saldo på konto (kr)
+        <input name="saldo" required inputmode="decimal" placeholder="0" autocomplete="off">
+      </label>
+      <p class="fotnote">Det som skal komme inn eller ut i dag, regnes som allerede med.</p>
+      <div class="skjema-knapper">
+        <span class="fyll"></span>
+        <button type="button" id="saldo-avbryt">Avbryt</button>
+        <button type="submit" class="hoved">Lagre</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="app.js"></script>
+  <script src="sparing.js"></script>
 </body>
 </html>

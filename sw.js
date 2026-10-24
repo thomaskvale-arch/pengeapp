@@ -1,12 +1,13 @@
 // Service worker: lagrer appens filer slik at den åpner også uten nett.
 // Henter alltid nyeste versjon når det er nett, og bruker lagret kopi ellers.
 
-const CACHE = "pengeoversikt-v1";
+const CACHE = "pengeoversikt-v2";
 const FILER = [
   "./",
   "index.html",
   "style.css",
   "app.js",
+  "sparing.js",
   "manifest.json",
   "icons/icon.svg",
   "icons/icon-180.png",
