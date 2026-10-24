@@ -441,8 +441,11 @@ function lagTips(dager) {
       const naa = ukerTilMaal(sparePerUke(true));
       const ny = ukerTilMaal(sparePerUke(true) + forslag);
       const maal = sparing.maal.navn || "sparemålet";
-      if (!Number.isFinite(naa)) tekst += ` Da har du nok til ${maal} om ${tidTekst(ny)}.`;
-      else if (naa - ny >= 1) tekst += ` Da har du nok til ${maal} hele ${tidTekst(naa - ny)} tidligere.`;
+      // Datoen slutter på punktum («11. mars» / «17. apr.»), så den står ikke sist i setningen
+      const dato = datoKort.format(datoOmUker(ny));
+      if (!Number.isFinite(naa)) tekst += ` Da har du nok til ${maal} ca. ${dato} – om ${tidTekst(ny)}.`;
+      else if (naa - ny >= 1) tekst += ` Da har du nok til ${maal} ca. ${dato} – hele ${tidTekst(naa - ny)} tidligere.`;
+      else tekst += ` Da har du nok til ${maal} ca. ${dato} – noen dager tidligere.`;
     }
 
     tips.push({ type: "gronn", tittel: "Du kan kanskje spare litt mer", tekst, sparForslag: forslag });
