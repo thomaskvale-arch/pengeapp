@@ -359,9 +359,16 @@ function tegnFaktisk() {
   anslagEl.textContent = `I tillegg regnes ca. ${kroner.format(Math.abs(perDag))} ${perDag < 0 ? "ut" : "inn"} per dag som anslag (${anslag.map((p) => p.navn).join(", ")}). «Saldo etter» tar med anslagene.`;
   document.getElementById("graf-forklaring").hidden = anslag.length === 0;
   const mangler = poster.filter((p) => p.mangler);
-  const manglerEl = document.getElementById("mangler-info");
-  manglerEl.hidden = mangler.length === 0;
-  manglerEl.textContent = `Ikke med i beregningen før dagen er valgt under Plan: ${mangler.map((p) => p.navn).join(", ")}.`;
+  // Poster uten dag (fra første versjon): én knapp per post som åpner skjemaet direkte
+  document.getElementById("mangler-info").hidden = mangler.length === 0;
+  const manglerKnapper = document.getElementById("mangler-knapper");
+  manglerKnapper.replaceChildren();
+  for (const p of mangler) {
+    const knapp = lagElement("button", "", `Velg dag for ${p.navn}`);
+    knapp.type = "button";
+    knapp.addEventListener("click", () => aapneSkjema(p));
+    manglerKnapper.append(knapp);
+  }
   tegnStatus(dager);
   tegnGraf(dager);
   tegnKommende(dager);

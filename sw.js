@@ -2,7 +2,7 @@
 // Henter alltid nyeste versjon når det er nett, og bruker lagret kopi ellers.
 
 // Øk tallet (og ?v= i index.html) når det publiseres en ny versjon
-const VERSJON = 4;
+const VERSJON = 5;
 const CACHE = `pengeoversikt-v${VERSJON}`;
 const FILER = [
   "./",
