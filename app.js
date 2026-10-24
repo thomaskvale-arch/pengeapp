@@ -1,6 +1,8 @@
-// Pengeoversikt: to faner.
-//  - Plan: faste penger inn og utgifter, med dag/dato, regnet om til per uke.
+// Pengeoversikt: Plan og Faktisk (Sparing ligger i sparing.js).
+//  - Plan: penger inn og utgifter, regnet om til per uke. Hver post er enten
+//    fast (fast beløp på fast dag/dato) eller varierer (et anslag uten fast dag).
 //  - Faktisk: saldoen nå, og hvordan den utvikler seg de neste dagene etter planen.
+//    Anslag fordeles jevnt per dag, og grafen viser spennet mellom «bare faste» og «med anslag».
 // Alt lagres i nettleseren på telefonen (localStorage), ingenting sendes på nett.
 
 const LAGRINGSNOKKEL = "pengeoversikt-poster";
@@ -9,11 +11,17 @@ const FANENOKKEL = "pengeoversikt-fane";
 
 // Hvor mange ganger per uke hver frekvens skjer i snitt (52 uker i året).
 const FREKVENSER = {
+  dag:       { perUke: 7 },
   uke:       { perUke: 1 },
   annenhver: { perUke: 1 / 2 },
   maaned:    { perUke: 12 / 52 },
   kvartal:   { perUke: 4 / 52 },
   aar:       { perUke: 1 / 52 },
+};
+
+const PER_ORD = {
+  dag: "per dag", uke: "per uke", annenhver: "per 14. dag",
+  maaned: "per måned", kvartal: "per kvartal", aar: "per år",
 };
 
 const UKEDAGER = ["søndag", "mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag"];
@@ -70,10 +78,12 @@ function mod(a, b) {
   return ((a % b) + b) % b;
 }
 
-// Skjer denne posten på dag d?
+// Skjer denne faste posten på dag d? (Anslag har ingen dag; de fordeles i framskriv.)
 function skjerPaa(post, d) {
-  if (post.mangler) return false;
+  if (post.mangler || !post.sikker) return false;
   switch (post.frekvens) {
+    case "dag":
+      return true;
     case "uke":
       return d.getDay() === post.ukedag;
     case "annenhver":
@@ -96,7 +106,9 @@ function skjerPaa(post, d) {
 // Tekst som «hver fredag» eller «hver måned den 15.»
 function naarTekst(post) {
   if (post.mangler) return "– trykk for å velge dag";
+  if (!post.sikker) return `${PER_ORD[post.frekvens]} · varierer`;
   switch (post.frekvens) {
+    case "dag":       return "hver dag";
     case "uke":       return `hver ${UKEDAGER[post.ukedag]}`;
     case "annenhver": return `annenhver ${UKEDAGER[fraTekst(post.start).getDay()]}`;
     case "maaned":    return `hver måned den ${post.dag}.`;
@@ -118,18 +130,21 @@ function nesteGang(post) {
 // ---------- Lagring ----------
 
 // Fyller inn standardverdier for dag/dato. Poster fra første versjon av appen hadde
-// ikke dag/dato; de merkes med «mangler» og holdes utenfor Faktisk til dagen er valgt.
+// ikke dag/dato; faste poster uten dag merkes med «mangler» og holdes utenfor
+// Faktisk til dagen er valgt. Poster uten «sikker» regnes som faste.
 function normaliser(p) {
+  const sikker = p.sikker !== false;
   const harUkedag = Number.isInteger(p.ukedag);
   const harDag = Number.isInteger(p.dag);
   const harStart = typeof p.start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.start);
-  const trenger = { uke: harUkedag, maaned: harDag }[p.frekvens] ?? harStart;
+  const harNaar = { dag: true, uke: harUkedag, maaned: harDag }[p.frekvens] ?? harStart;
   return {
     ...p,
+    sikker,
     ukedag: harUkedag ? p.ukedag : 1,
     dag: harDag ? p.dag : 1,
     start: harStart ? p.start : tilTekst(iDag()),
-    mangler: Boolean(p.mangler) || !trenger,
+    mangler: sikker && (Boolean(p.mangler) || !harNaar),
   };
 }
 
@@ -191,10 +206,16 @@ function perUke(post) {
   return post.belop * FREKVENSER[post.frekvens].perUke;
 }
 
-function sum(type) {
+// Sum per uke for «inn» eller «ut». bareAnslag: bare postene som varierer.
+function sum(type, bareAnslag = false) {
   return poster
-    .filter((p) => p.type === type)
+    .filter((p) => p.type === type && (!bareAnslag || !p.sikker))
     .reduce((total, p) => total + perUke(p), 0);
+}
+
+// Netto anslag per dag (positivt = mer inn enn ut), fordelt jevnt over uka
+function anslagPerDag() {
+  return (sum("inn", true) - sum("ut", true)) / 7;
 }
 
 function tegnPlan() {
@@ -211,6 +232,16 @@ function tegnPlan() {
 
   document.getElementById("sum-maaned").textContent =
     `Omtrent ${kroner.format((igjen * 52) / 12)} igjen per måned`;
+
+  // Hvor mye av tallene som bare er anslag
+  const anslagInn = sum("inn", true);
+  const anslagUt = sum("ut", true);
+  const anslagEl = document.getElementById("sum-anslag");
+  anslagEl.hidden = anslagInn === 0 && anslagUt === 0;
+  const deler = [];
+  if (anslagInn) deler.push(`${kroner.format(anslagInn)} av inn`);
+  if (anslagUt) deler.push(`${kroner.format(anslagUt)} av ut`);
+  anslagEl.textContent = `Anslag (varierer): ${deler.join(" og ")} per uke. Bare faste: ${kroner.format(igjen - anslagInn + anslagUt)} igjen per uke.`;
 
   tegnListe("inn", "Ingen penger inn lagt til ennå.");
   tegnListe("ut", "Ingen utgifter lagt til ennå.");
@@ -237,7 +268,8 @@ function tegnListe(type, tomTekst) {
     const venstre = lagElement("div");
     venstre.append(
       lagElement("div", "post-navn", post.navn),
-      lagElement("div", post.mangler ? "post-info mangler" : "post-info", `${kroner.format(post.belop)} ${naarTekst(post)}`)
+      lagElement("div", post.mangler ? "post-info mangler" : "post-info",
+        `${post.sikker ? "" : "ca. "}${kroner.format(post.belop)} ${naarTekst(post)}`)
     );
 
     const hoyre = lagElement("div", "post-hoyre");
@@ -271,17 +303,24 @@ function framskriv() {
   if (fra > idag) fra = idag;
 
   const slutt = leggTilDager(idag, antallDager);
-  let belop = saldo.belop;
+  const perDag = anslagPerDag();
+  let belop = saldo.belop; // med anslag
+  let fast = saldo.belop;  // bare faste poster
   const dager = [];
 
   if (dagerMellom(fra, idag) === 0) {
-    dager.push({ dato: idag, saldo: belop, hendelser: [] });
+    dager.push({ dato: idag, saldo: belop, fast, hendelser: [] });
   }
 
   for (let d = leggTilDager(fra, 1); d <= slutt; d = leggTilDager(d, 1)) {
     const hendelser = poster.filter((p) => skjerPaa(p, d));
-    for (const p of hendelser) belop += p.type === "inn" ? p.belop : -p.belop;
-    if (d >= idag) dager.push({ dato: d, saldo: belop, hendelser });
+    for (const p of hendelser) {
+      const endring = p.type === "inn" ? p.belop : -p.belop;
+      belop += endring;
+      fast += endring;
+    }
+    belop += perDag;
+    if (d >= idag) dager.push({ dato: d, saldo: belop, fast, hendelser });
   }
   return dager;
 }
@@ -308,8 +347,17 @@ function tegnFaktisk() {
   infoEl.textContent = siden <= 0
     ? "Oppdatert i dag"
     : `Beregnet ut fra planen. Sist oppdatert ${datoKort.format(fraTekst(saldo.dato))} (${kroner.format(saldo.belop)}).`;
+  if (Math.round(idag.fast) !== Math.round(idag.saldo)) {
+    infoEl.textContent += ` Bare faste: ${kroner.format(idag.fast)}.`;
+  }
 
   framover.hidden = false;
+  const anslag = poster.filter((p) => !p.sikker);
+  const anslagEl = document.getElementById("anslag-info");
+  anslagEl.hidden = anslag.length === 0;
+  const perDag = anslagPerDag();
+  anslagEl.textContent = `I tillegg regnes ca. ${kroner.format(Math.abs(perDag))} ${perDag < 0 ? "ut" : "inn"} per dag som anslag (${anslag.map((p) => p.navn).join(", ")}). «Saldo etter» tar med anslagene.`;
+  document.getElementById("graf-forklaring").hidden = anslag.length === 0;
   const mangler = poster.filter((p) => p.mangler);
   const manglerEl = document.getElementById("mangler-info");
   manglerEl.hidden = mangler.length === 0;
@@ -322,14 +370,19 @@ function tegnFaktisk() {
 function tegnStatus(dager) {
   const statusEl = document.getElementById("status");
   statusEl.replaceChildren();
-  const forsteMinus = dager.find((d) => d.saldo < 0);
-  const lavest = dager.reduce((a, b) => (b.saldo < a.saldo ? b : a));
+  // Bruk den laveste av «med anslag» og «bare faste» (verste tilfelle)
+  const lav = (d) => Math.min(d.saldo, d.fast);
+  const forsteMinus = dager.find((d) => lav(d) < 0);
+  const lavest = dager.reduce((a, b) => (lav(b) < lav(a) ? b : a));
+  const sikkertMinus = forsteMinus && forsteMinus.fast < 0 && forsteMinus.saldo < 0;
 
   const ikon = lagElement("span", forsteMinus ? "ikon fare" : "ikon ok", forsteMinus ? "⚠" : "✓");
   ikon.setAttribute("aria-hidden", "true");
-  const tekst = forsteMinus
-    ? `Går under 0 kr ${datoKort.format(forsteMinus.dato)} – lavest ${kroner.format(lavest.saldo)}`
-    : `Holder seg over 0 kr – lavest ${kroner.format(lavest.saldo)} ${datoKort.format(lavest.dato)}`;
+  const tekst = !forsteMinus
+    ? `Holder seg over 0 kr – lavest ${kroner.format(lav(lavest))} ${datoKort.format(lavest.dato)}`
+    : sikkertMinus
+      ? `Går under 0 kr ${datoKort.format(forsteMinus.dato)} – lavest ${kroner.format(lav(lavest))}`
+      : `Kan gå under 0 kr ${datoKort.format(forsteMinus.dato)} hvis anslagene stemmer – lavest ${kroner.format(lav(lavest))}`;
   statusEl.append(ikon, lagElement("span", "", tekst));
   statusEl.classList.toggle("varsel", Boolean(forsteMinus));
 }
@@ -350,7 +403,8 @@ function tegnKommende(dager) {
     const erIDag = dagerMellom(iDag(), dag.dato) === 0;
     topp.append(
       lagElement("span", "dag-dato", erIDag ? "I dag" : datoKort.format(dag.dato)),
-      lagElement("span", `dag-saldo${dag.saldo < 0 ? " minus" : ""}`, `Saldo etter: ${kroner.format(dag.saldo)}`)
+      lagElement("span", `dag-saldo${dag.saldo < 0 ? " minus" : ""}`,
+        `Saldo etter: ${Math.round(dag.fast) !== Math.round(dag.saldo) ? "ca. " : ""}${kroner.format(dag.saldo)}`)
     );
     li.append(topp);
 
@@ -399,9 +453,11 @@ function tegnGraf(dager) {
   const plotH = hoyde - marg.topp - marg.bunn;
 
   // Y-aksen tar alltid med 0, så man ser avstanden ned til tomt
+  const harAnslag = dager.some((d) => Math.round(d.fast) !== Math.round(d.saldo));
   const verdier = dager.map((d) => d.saldo);
-  let min = Math.min(0, ...verdier);
-  let max = Math.max(0, ...verdier);
+  const lave = dager.map((d) => Math.min(d.saldo, d.fast));
+  let min = Math.min(0, ...lave);
+  let max = Math.max(0, ...verdier, ...dager.map((d) => d.fast));
   if (max === min) max = min + 100;
   const steg = pentSteg(max - min, 3);
   min = Math.floor(min / steg) * steg;
@@ -453,32 +509,48 @@ function tegnGraf(dager) {
     svg.append(t);
   });
 
-  // Trappelinjen
-  let linje = `M ${x(0)} ${y(dager[0].saldo)}`;
-  for (let i = 1; i < dager.length; i++) linje += ` H ${x(i)} V ${y(dager[i].saldo)}`;
-  const flate = `${linje} H ${x(dager.length - 1)} V ${y0} H ${x(0)} Z`;
+  // Trappelinjer
+  const trapp = (felt) => {
+    let d = `M ${x(0)} ${y(dager[0][felt])}`;
+    for (let i = 1; i < dager.length; i++) d += ` H ${x(i)} V ${y(dager[i][felt])}`;
+    return d;
+  };
+  const linje = trapp("saldo");
 
+  if (harAnslag) {
+    // Spennet mellom «bare faste» og «med anslag», dag for dag
+    let spenn = "";
+    for (let i = 0; i < dager.length - 1; i++) {
+      spenn += `M ${x(i)} ${y(dager[i].fast)} H ${x(i + 1)} V ${y(dager[i].saldo)} H ${x(i)} Z `;
+    }
+    svg.append(svgEl("path", { d: spenn, class: "spenn" }));
+    svg.append(svgEl("path", { d: trapp("fast"), class: "linje fast" }));
+  }
+
+  // Hovedlinjen (med anslag): grønn over 0, rød under 0. Uten anslag får den en svak flate ned til 0.
+  const flate = `${linje} H ${x(dager.length - 1)} V ${y0} H ${x(0)} Z`;
   for (const [del, klasse] of [["over", "pluss"], ["under", "minus"]]) {
     const g = svgEl("g", { "clip-path": `url(#${id}-${del})`, class: klasse });
-    g.append(svgEl("path", { d: flate, class: "flate" }), svgEl("path", { d: linje, class: "linje" }));
+    if (!harAnslag) g.append(svgEl("path", { d: flate, class: "flate" }));
+    g.append(svgEl("path", { d: linje, class: "linje" }));
     svg.append(g);
   }
 
   // Merk laveste punkt (bare ett tall i grafen, resten står i lista og i tooltip)
-  const lavI = verdier.indexOf(Math.min(...verdier));
+  const lavI = lave.indexOf(Math.min(...lave));
   const lavPunkt = svgEl("circle", {
-    cx: x(lavI), cy: y(verdier[lavI]), r: 4,
-    class: `punkt ${verdier[lavI] < 0 ? "minus" : "pluss"}`,
+    cx: x(lavI), cy: y(lave[lavI]), r: 4,
+    class: `punkt ${lave[lavI] < 0 ? "minus" : "pluss"}`,
   });
   // Teksten står til venstre for punktet (linjen fortsetter mot høyre),
   // men over punktet hvis det laveste er helt i starten
   const iStarten = lavI === 0;
   const lavTekst = svgEl("text", {
     x: iStarten ? x(lavI) + 4 : x(lavI) - 8,
-    y: y(verdier[lavI]) + (iStarten ? -10 : 4),
+    y: y(lave[lavI]) + (iStarten ? -10 : 4),
     class: "punkt-tekst", "text-anchor": iStarten ? "start" : "end",
   });
-  lavTekst.textContent = `Lavest ${kroner.format(verdier[lavI])}`;
+  lavTekst.textContent = `Lavest ${kroner.format(lave[lavI])}`;
   svg.append(lavPunkt, lavTekst);
 
   // Hover/trykk: loddrett strek som følger fingeren, med tooltip
@@ -503,9 +575,12 @@ function tegnGraf(dager) {
     prikk.setAttribute("visibility", "visible");
 
     tooltip.replaceChildren(
-      lagElement("strong", "", kroner.format(d.saldo)),
+      lagElement("strong", "", `${harAnslag ? "ca. " : ""}${kroner.format(d.saldo)}`),
       lagElement("span", "tooltip-dato", valgt === 0 ? "I dag" : datoKort.format(d.dato))
     );
+    if (harAnslag) {
+      tooltip.append(lagElement("span", "tooltip-rad", `Bare faste: ${kroner.format(d.fast)}`));
+    }
     for (const p of d.hendelser) {
       tooltip.append(lagElement("span", "tooltip-rad", `${p.type === "inn" ? "+" : "−"}${kroner.format(p.belop)} ${p.navn}`));
     }
@@ -599,14 +674,21 @@ document.getElementById("saldo-avbryt").addEventListener("click", () => saldoDia
 const dialog = document.getElementById("skjema-dialog");
 const skjema = document.getElementById("skjema");
 
-// Vis bare feltet som hører til valgt frekvens (ukedag, dato eller startdato)
+// Vis bare feltet som hører til valgt frekvens (ukedag, dato eller startdato).
+// Poster som varierer har ingen fast dag, så da skjules alle tre.
 function visRiktigeFelter() {
   const f = skjema.frekvens.value;
+  const sikker = skjema.sikker.value === "ja";
   for (const felt of skjema.querySelectorAll("[data-for]")) {
-    felt.hidden = !felt.dataset.for.split(" ").includes(f);
+    felt.hidden = !sikker || !felt.dataset.for.split(" ").includes(f);
   }
+  document.getElementById("anslag-hjelp").hidden = sikker;
+  document.getElementById("belop-etikett").textContent = sikker ? "Beløp (kr)" : "Omtrent hvor mye (kr)";
 }
 skjema.frekvens.addEventListener("change", visRiktigeFelter);
+for (const valg of skjema.querySelectorAll("[name=sikker]")) {
+  valg.addEventListener("change", visRiktigeFelter);
+}
 
 function aapneSkjema(post, type = "inn") {
   redigererId = post ? post.id : null;
@@ -616,6 +698,7 @@ function aapneSkjema(post, type = "inn") {
   document.getElementById("slett").hidden = !post;
 
   skjema.type.value = post ? post.type : type;
+  skjema.sikker.value = post && !post.sikker ? "nei" : "ja";
   skjema.start.value = tilTekst(iDag());
   if (post) {
     skjema.navn.value = post.navn;
@@ -641,24 +724,26 @@ skjema.addEventListener("submit", (e) => {
   }
 
   const frekvens = skjema.frekvens.value;
+  const sikker = skjema.sikker.value === "ja";
   const dag = Number(skjema.dag.value);
-  if (frekvens === "maaned" && !(Number.isInteger(dag) && dag >= 1 && dag <= 31)) {
+  if (sikker && frekvens === "maaned" && !(Number.isInteger(dag) && dag >= 1 && dag <= 31)) {
     alert("Skriv hvilken dato i måneden, et tall fra 1 til 31.");
     return;
   }
-  if (["annenhver", "kvartal", "aar"].includes(frekvens) && !skjema.start.value) {
+  if (sikker && ["annenhver", "kvartal", "aar"].includes(frekvens) && !skjema.start.value) {
     alert("Velg når det skjer neste gang.");
     return;
   }
 
   const data = normaliser({
     mangler: false,
+    sikker,
     type: skjema.type.value,
     navn: skjema.navn.value.trim(),
     belop,
     frekvens,
     ukedag: Number(skjema.ukedag.value),
-    dag: frekvens === "maaned" ? dag : undefined,
+    dag: frekvens === "maaned" && Number.isInteger(dag) && dag >= 1 ? dag : undefined,
     start: skjema.start.value,
   });
 

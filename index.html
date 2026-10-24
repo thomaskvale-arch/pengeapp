@@ -14,8 +14,8 @@
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 
-  <!-- ?v=3 er versjonsnummer: øk det ved hver publisering, så nettleseren henter nye filer -->
-  <link rel="stylesheet" href="style.css?v=3">
+  <!-- ?v=4 er versjonsnummer: øk det ved hver publisering, så nettleseren henter nye filer -->
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <header class="topp">
@@ -44,6 +44,7 @@
           </div>
         </div>
         <p class="fotnote" id="sum-maaned"></p>
+        <p class="fotnote liten" id="sum-anslag" hidden></p>
       </section>
 
       <section aria-labelledby="tittel-inn">
@@ -96,13 +97,19 @@
               <button type="button" data-dager="30">30 dager</button>
             </div>
           </div>
-          <div class="graf" id="graf">
+          <div class="forklaring" id="graf-forklaring" hidden>
+          <span><i class="nokkel med"></i>Med anslag</span>
+          <span><i class="nokkel uten"></i>Bare faste</span>
+          <span><i class="nokkel spenn"></i>Spenn</span>
+        </div>
+        <div class="graf" id="graf">
             <div class="tooltip" id="tooltip" hidden></div>
           </div>
         </section>
 
         <section aria-labelledby="tittel-kommende">
           <h2 id="tittel-kommende" class="seksjon-tittel">Dette skjer</h2>
+          <p class="fotnote" id="anslag-info" hidden></p>
           <ul class="liste" id="kommende"></ul>
         </section>
       </div>
@@ -232,15 +239,22 @@
         <input name="navn" required maxlength="40" placeholder="F.eks. Lønn fredag" autocomplete="off">
       </label>
 
+      <fieldset class="type-valg">
+        <legend>Hvor sikkert er det?</legend>
+        <label><input type="radio" name="sikker" value="ja" checked> Fast</label>
+        <label><input type="radio" name="sikker" value="nei"> Varierer (anslag)</label>
+      </fieldset>
+
       <label>
-        Beløp (kr)
+        <span id="belop-etikett">Beløp (kr)</span>
         <input name="belop" required inputmode="decimal" placeholder="0" autocomplete="off">
       </label>
 
       <label>
         Hvor ofte?
         <select name="frekvens">
-          <option value="uke">Hver uke</option>
+          <option value="dag">Hver dag</option>
+          <option value="uke" selected>Hver uke</option>
           <option value="annenhver">Annenhver uke</option>
           <option value="maaned">Hver måned</option>
           <option value="kvartal">Hvert kvartal</option>
@@ -248,7 +262,9 @@
         </select>
       </label>
 
-      <!-- Bare ett av disse tre feltene vises, avhengig av «Hvor ofte?» -->
+      <p class="fotnote" id="anslag-hjelp" hidden>Varierer: beløpet er et anslag uten fast dag. I Faktisk trekkes det litt hver dag.</p>
+
+      <!-- Bare ett av disse tre feltene vises, avhengig av «Hvor ofte?» (og bare for faste poster) -->
       <label data-for="uke">
         Hvilken dag?
         <select name="ukedag">
@@ -298,7 +314,7 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=3"></script>
-  <script src="sparing.js?v=3"></script>
+  <script src="app.js?v=4"></script>
+  <script src="sparing.js?v=4"></script>
 </body>
 </html>

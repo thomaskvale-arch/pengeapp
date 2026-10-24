@@ -126,6 +126,12 @@ section { margin-top: 24px; }
   padding-top: 12px;
   border-top: 1px solid var(--linje);
 }
+.oppsummering .fotnote.liten {
+  margin-top: 0;
+  padding-top: 6px;
+  border-top: 0;
+  font-size: 0.8rem;
+}
 
 #saldo-kort .fotnote { margin: 0 0 14px; }
 
@@ -255,6 +261,19 @@ section { margin-top: 24px; }
 .pluss .flate { fill: var(--hoved); }
 .minus .linje { stroke: var(--ut); }
 .minus .flate { fill: var(--ut); }
+
+/* Spenn mellom «bare faste» og «med anslag» i Faktisk-grafen */
+.spenn { fill: var(--hoved); opacity: 0.15; }
+.linje.fast { stroke: var(--dempet); stroke-dasharray: 5 4; }
+.nokkel.spenn {
+  height: 10px;
+  border: 0;
+  background: var(--hoved);
+  opacity: 0.25;
+  border-radius: 2px;
+}
+.forklaring + .graf { margin-top: 4px; }
+.graf-kort .forklaring { margin-bottom: 4px; }
 
 .punkt { stroke: var(--kort); stroke-width: 2; }
 .punkt.pluss { fill: var(--hoved); }
